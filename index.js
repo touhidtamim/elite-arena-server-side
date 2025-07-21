@@ -30,6 +30,7 @@ async function run() {
     // Collections
     const usersCollection = db.collection("users");
     const courtsCollection = db.collection("courts");
+    const bookingsCollection = db.collection("bookings");
 
     // Add a new user
     app.post("/users", async (req, res) => {
@@ -58,6 +59,36 @@ async function run() {
       }
     });
 
+    // Add a new booking
+    app.post("/bookings", async (req, res) => {
+      try {
+        const booking = req.body;
+
+        // Force booking status to pending regardless of client input
+        booking.status = "pending";
+        booking.createdAt = new Date();
+
+        const result = await bookingsCollection.insertOne(booking);
+        res.status(201).json(result);
+      } catch (error) {
+        console.error("Error inserting booking:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to create booking", details: error.message });
+      }
+    });
+
+    // (Optional) Get all bookings - useful for admin
+    app.get("/bookings", async (req, res) => {
+      try {
+        const bookings = await bookingsCollection.find().toArray();
+        res.status(200).json(bookings);
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+        res.status(500).json({ error: "Failed to fetch bookings" });
+      }
+    });
+
     // Get All Courts
     app.get("/courts", async (req, res) => {
       try {
@@ -66,6 +97,19 @@ async function run() {
       } catch (error) {
         console.error("Failed to get courts:", error);
         res.status(500).json({ error: "Failed to fetch courts" });
+      }
+    });
+
+    // GET all pending bookings
+    app.get("/bookings/pending", async (req, res) => {
+      try {
+        const pendingBookings = await bookingsCollection
+          .find({ status: "pending" })
+          .toArray();
+        res.status(200).json(pendingBookings);
+      } catch (error) {
+        console.error("Error fetching pending bookings:", error);
+        res.status(500).json({ error: "Failed to fetch pending bookings" });
       }
     });
 
