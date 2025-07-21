@@ -145,24 +145,24 @@ async function run() {
       }
     });
 
-    // // Delete booking (Reject)
-    // app.delete("/bookings/:id", async (req, res) => {
-    //   const bookingId = req.params.id;
+    // Delete booking (Reject)
+    app.delete("/bookings/:id", async (req, res) => {
+      const bookingId = req.params.id;
 
-    //   try {
-    //     const result = await bookingsCollection.deleteOne({
-    //       _id: new ObjectId(bookingId),
-    //     });
+      try {
+        const result = await bookingsCollection.deleteOne({
+          _id: new ObjectId(bookingId),
+        });
 
-    //     if (result.deletedCount === 0) {
-    //       return res.status(404).json({ error: "Booking not found" });
-    //     }
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ error: "Booking not found" });
+        }
 
-    //     res.status(200).json({ message: "Booking cancelled successfully" });
-    //   } catch (error) {
-    //     res.status(500).json({ error: "Failed to cancel booking" });
-    //   }
-    // });
+        res.status(200).json({ message: "Booking cancelled successfully" });
+      } catch (error) {
+        res.status(500).json({ error: "Failed to cancel booking" });
+      }
+    });
 
     // Health check
     app.get("/", (req, res) => {
