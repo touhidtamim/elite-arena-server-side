@@ -31,6 +31,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const courtsCollection = db.collection("courts");
     const bookingsCollection = db.collection("bookings");
+    const { ObjectId } = require("mongodb");
 
     // Add a new user
     app.post("/users", async (req, res) => {
@@ -110,6 +111,26 @@ async function run() {
       } catch (error) {
         console.error("Error fetching pending bookings:", error);
         res.status(500).json({ error: "Failed to fetch pending bookings" });
+      }
+    });
+
+    // DELETE a booking by ID (used for cancel)
+    app.delete("/bookings/:id", async (req, res) => {
+      const bookingId = req.params.id;
+
+      try {
+        const result = await bookingsCollection.deleteOne({
+          _id: new ObjectId(bookingId),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ error: "Booking not found" });
+        }
+
+        res.status(200).json({ message: "Booking cancelled successfully" });
+      } catch (error) {
+        console.error("Error cancelling booking:", error);
+        res.status(500).json({ error: "Failed to cancel booking" });
       }
     });
 
