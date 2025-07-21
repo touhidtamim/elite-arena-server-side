@@ -79,7 +79,7 @@ async function run() {
       }
     });
 
-    // (Optional) Get all bookings - useful for admin
+    // Get all bookings - useful for admin
     app.get("/bookings", async (req, res) => {
       try {
         const bookings = await bookingsCollection.find().toArray();
@@ -87,6 +87,22 @@ async function run() {
       } catch (error) {
         console.error("Error fetching bookings:", error);
         res.status(500).json({ error: "Failed to fetch bookings" });
+      }
+    });
+
+    // Get pending bookings for a specific user
+    app.get("/bookings/pending/:userId", async (req, res) => {
+      try {
+        const userId = req.params.userId;
+        const pendingUserBookings = await bookingsCollection
+          .find({ status: "pending", userId: userId })
+          .toArray();
+        res.status(200).json(pendingUserBookings);
+      } catch (error) {
+        console.error("Error fetching user pending bookings:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to fetch user pending bookings" });
       }
     });
 
@@ -98,19 +114,6 @@ async function run() {
       } catch (error) {
         console.error("Failed to get courts:", error);
         res.status(500).json({ error: "Failed to fetch courts" });
-      }
-    });
-
-    // GET all pending bookings
-    app.get("/bookings/pending", async (req, res) => {
-      try {
-        const pendingBookings = await bookingsCollection
-          .find({ status: "pending" })
-          .toArray();
-        res.status(200).json(pendingBookings);
-      } catch (error) {
-        console.error("Error fetching pending bookings:", error);
-        res.status(500).json({ error: "Failed to fetch pending bookings" });
       }
     });
 
