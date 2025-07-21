@@ -8,11 +8,9 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection Setup
 const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri, {
   serverApi: {
@@ -24,30 +22,67 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
+    // Connect to MongoDB
     await client.connect();
-    console.log("✅ Connected to MongoDB");
 
     const db = client.db("eliteArena");
+
+    // Collections
     const usersCollection = db.collection("users");
+    const courtsCollection = db.collection("courts");
 
-    // Example Route - Test Insert
+    // Add a new user
     app.post("/users", async (req, res) => {
-      const user = req.body;
-      const result = await usersCollection.insertOne(user);
-      res.send(result);
+      try {
+        const user = req.body;
+        const result = await usersCollection.insertOne(user);
+        res.status(201).json(result);
+      } catch {
+        res.status(500).json({ error: "Failed to create user" });
+      }
     });
 
-    // Root Route
+    // Add a new court
+    app.post("/courts", async (req, res) => {
+      try {
+        console.log("Received court data:", req.body);
+        const court = req.body;
+        const result = await courtsCollection.insertOne(court);
+        console.log("Inserted court:", result.insertedId);
+        res.status(201).json(result);
+      } catch (error) {
+        console.error("Error inserting court:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to create court", details: error.message });
+      }
+    });
+
+    // Get All Courts
+    app.get("/courts", async (req, res) => {
+      try {
+        const courts = await courtsCollection.find({}).toArray();
+        res.status(200).json(courts);
+      } catch (error) {
+        console.error("Failed to get courts:", error);
+        res.status(500).json({ error: "Failed to fetch courts" });
+      }
+    });
+
+    // Health check endpoint
     app.get("/", (req, res) => {
-      res.send("Elite Arena SCMS Backend Running with DB ✅");
+      res.send("Elite Arena SCMS Backend Running");
     });
 
-    // Start the server after DB is connected
+    // Start server
     app.listen(port, () => {
-      console.log(`🚀 Server running on port ${port}`);
+      console.log(`Server running on port ${port}`);
     });
   } catch (error) {
-    console.error("❌ MongoDB connection failed:", error);
+    console.error("MongoDB connection failed", error);
+
+    // Commented out process.exit to keep server running even if DB connection fails
+    // process.exit(1);
   }
 }
 
