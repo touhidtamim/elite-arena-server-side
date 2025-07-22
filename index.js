@@ -30,6 +30,7 @@ async function run() {
     const courtsCollection = db.collection("courts");
     const bookingsCollection = db.collection("bookings");
     const couponsCollection = db.collection("coupons");
+    const announcementsCollection = db.collection("announcements");
 
     //  Save or update user (Register or Google Login)
     app.put("/users", async (req, res) => {
@@ -307,6 +308,7 @@ async function run() {
       }
     });
 
+    // update bookings
     app.patch("/bookings/:id", async (req, res) => {
       const bookingId = req.params.id;
       const { status } = req.body;
@@ -417,6 +419,7 @@ async function run() {
       }
     });
 
+    // Update Coupons
     app.patch("/coupons/:id", async (req, res) => {
       const couponId = req.params.id;
       const updateData = { ...req.body };
@@ -465,6 +468,116 @@ async function run() {
         res.status(200).json({ message: "Coupon deleted" });
       } catch (error) {
         res.status(500).json({ error: "Failed to delete coupon" });
+      }
+    });
+
+    const { ObjectId } = require("mongodb");
+
+    // GET all announcements
+    app.get("/announcements", async (req, res) => {
+      try {
+        const announcements = await announcementsCollection
+          .find()
+          .sort({ _id: -1 })
+          .toArray();
+        res.status(200).json(announcements);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch announcements" });
+      }
+    });
+
+    // POST create new announcement
+    app.post("/announcements", async (req, res) => {
+      try {
+        const { title, content } = req.body;
+
+        if (!title || !content) {
+          return res
+            .status(400)
+            .json({ error: "Title and content are required" });
+        }
+
+        const newAnnouncement = {
+          title,
+          content,
+          createdAt: new Date().toISOString(),
+        };
+
+        const result = await announcementsCollection.insertOne(newAnnouncement);
+
+        const announcement = { ...newAnnouncement, _id: result.insertedId };
+
+        res.status(201).json({
+          message: "Announcement added",
+          announcement,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to add announcement" });
+      }
+    });
+
+    // PATCH update announcement by id
+    app.patch("/announcements/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ error: "Invalid announcement ID" });
+        }
+
+        const { title, content } = req.body;
+
+        if (!title || !content) {
+          return res
+            .status(400)
+            .json({ error: "Title and content are required" });
+        }
+
+        // Update announcement and return updated document
+        const result = await announcementsCollection.findOneAndUpdate(
+          { _id: new ObjectId(id) },
+          { $set: { title, content, updatedAt: new Date().toISOString() } },
+          { returnOriginal: false }
+        );
+
+        // Instead of result.value, check result itself
+        if (!result) {
+          return res.status(404).json({ error: "Announcement not found" });
+        }
+
+        res.status(200).json({
+          message: "Announcement updated",
+          announcement: result,
+        });
+      } catch (error) {
+        console.error("Error updating announcement:", error);
+        res.status(500).json({ error: "Failed to update announcement" });
+      }
+    });
+
+    // DELETE announcement by id
+    app.delete("/announcements/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ error: "Invalid announcement ID" });
+        }
+
+        const result = await announcementsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ error: "Announcement not found" });
+        }
+
+        res.status(200).json({ message: "Announcement deleted" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to delete announcement" });
       }
     });
 
