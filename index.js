@@ -86,6 +86,47 @@ async function run() {
       }
     });
 
+    // Get all members (role === "member")
+    app.get("/members", async (req, res) => {
+      try {
+        const members = await usersCollection
+          .find({ role: "member" })
+          .project({ name: 1, email: 1, image: 1, role: 1 }) // optional: limit fields
+          .toArray();
+
+        res.status(200).json(members);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to fetch members" });
+      }
+    });
+
+    // Downgrade a member to user (not delete, just change role)
+    app.patch("/members/downgrade/:id", async (req, res) => {
+      const userId = req.params.id;
+
+      try {
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId), role: "member" },
+          { $set: { role: "user" } }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res
+            .status(404)
+            .json({ error: "User not found or already not a member" });
+        }
+
+        res.status(200).json({ message: "Member downgraded to user" });
+      } catch (error) {
+        res
+          .status(500)
+          .json({
+            error: "Failed to downgrade member",
+            details: error.message,
+          });
+      }
+    });
+
     // get users by email for profile
     app.get("/users/:email", async (req, res) => {
       const email = req.params.email;
