@@ -26,9 +26,65 @@ async function run() {
 
     const db = client.db("eliteArena");
 
-    const usersCollection = db.collection("users");
+    const usersCollection = db.collection("userscollection");
     const courtsCollection = db.collection("courts");
     const bookingsCollection = db.collection("bookings");
+
+    //  Save or update user (Register or Google Login)
+    app.put("/users", async (req, res) => {
+      const user = req.body;
+
+      // Optional chaining to prevent crash
+      const email = user?.email;
+      const name = user?.name;
+      const image = user?.image;
+
+      if (!email || !name) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const query = { email };
+
+      try {
+        const existingUser = await usersCollection.findOne(query);
+        const now = new Date();
+
+        if (existingUser) {
+          // Update lastLoggedIn only
+          const updateResult = await usersCollection.updateOne(query, {
+            $set: { lastLoggedIn: now },
+          });
+
+          return res.status(200).json({
+            message: "User already exists. Updated lastLoggedIn.",
+            updated: true,
+            result: updateResult,
+          });
+        }
+
+        // New user — insert
+        const newUser = {
+          name,
+          email,
+          image: image || null,
+          role: "user",
+          createdAt: now,
+          lastLoggedIn: now,
+        };
+
+        const result = await usersCollection.insertOne(newUser);
+        res.status(201).json({
+          message: "User created successfully.",
+          inserted: true,
+          result,
+        });
+      } catch (error) {
+        res.status(500).json({
+          error: "User save failed",
+          details: error.message,
+        });
+      }
+    });
 
     // Create court
     app.post("/courts", async (req, res) => {
