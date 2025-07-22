@@ -9,7 +9,8 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri, {
@@ -354,6 +355,25 @@ async function run() {
       } catch (error) {
         res.status(500).json({
           error: "Failed to update booking status",
+          details: error.message,
+        });
+      }
+    });
+
+    // Get approved bookings filtered by user email
+    app.get("/bookings/approved/:email", async (req, res) => {
+      const userEmail = req.params.email;
+
+      try {
+        // Find all bookings with status 'approved' and matching userEmail
+        const approvedBookings = await bookingsCollection
+          .find({ status: "approved", userEmail: userEmail })
+          .toArray();
+
+        res.status(200).json(approvedBookings);
+      } catch (error) {
+        res.status(500).json({
+          error: "Failed to fetch approved bookings",
           details: error.message,
         });
       }
