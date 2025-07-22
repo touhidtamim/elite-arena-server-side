@@ -376,20 +376,34 @@ async function run() {
       }
     });
 
-    // Create New Coupons
+    //  Create Coupons
     app.post("/coupons", async (req, res) => {
       try {
-        const coupon = req.body;
+        const { title, description, coupon, discountAmount } = req.body;
 
-        const existing = await couponsCollection.findOne({ code: coupon.code });
+        if (!title || !description || !coupon || !discountAmount) {
+          return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        // Check existing coupon code
+        const existing = await couponsCollection.findOne({ coupon });
         if (existing) {
           return res.status(409).json({ error: "Coupon already exists" });
         }
 
-        const result = await couponsCollection.insertOne(coupon);
+        const newCoupon = {
+          title,
+          description,
+          coupon,
+          discountAmount: Number(discountAmount),
+        };
+
+        const result = await couponsCollection.insertOne(newCoupon);
         res.status(201).json({ message: "Coupon added", result });
       } catch (error) {
-        res.status(500).json({ error: "Failed to add coupon" });
+        res
+          .status(500)
+          .json({ error: "Failed to add coupon", details: error.message });
       }
     });
 
@@ -403,10 +417,20 @@ async function run() {
       }
     });
 
-    // Update coupons by ID
     app.patch("/coupons/:id", async (req, res) => {
       const couponId = req.params.id;
-      const updateData = req.body;
+      const updateData = { ...req.body };
+
+      // Remove _id to avoid MongoDB error
+      delete updateData._id;
+
+      // Convert discountAmount to Number if it exists
+      if (updateData.discountAmount !== undefined) {
+        updateData.discountAmount = Number(updateData.discountAmount);
+      }
+
+      console.log("Updating coupon ID:", couponId);
+      console.log("Update data:", updateData);
 
       try {
         const result = await couponsCollection.updateOne(
@@ -420,6 +444,7 @@ async function run() {
 
         res.status(200).json({ message: "Coupon updated", result });
       } catch (error) {
+        console.error("Update coupon error:", error);
         res.status(500).json({ error: "Failed to update coupon" });
       }
     });
