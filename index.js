@@ -393,6 +393,16 @@ async function run() {
       }
     });
 
+    // Get All Coupons
+    app.get("/coupons", async (req, res) => {
+      try {
+        const coupons = await couponsCollection.find().toArray();
+        res.status(200).json(coupons);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to fetch coupons" });
+      }
+    });
+
     // Health check
     app.get("/", (req, res) => {
       res.send("Elite Arena SCMS Backend Running");
