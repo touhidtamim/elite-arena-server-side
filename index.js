@@ -429,6 +429,31 @@ async function run() {
       }
     });
 
+    // Validate coupon code
+    app.post("/coupons/validate", async (req, res) => {
+      const { couponCode } = req.body;
+
+      if (!couponCode) {
+        return res.status(400).json({ error: "Coupon code is required" });
+      }
+
+      try {
+        const coupon = await couponsCollection.findOne({ coupon: couponCode });
+
+        if (!coupon) {
+          return res.status(404).json({ error: "Coupon code not found" });
+        }
+
+        res
+          .status(200)
+          .json({ valid: true, discountAmount: coupon.discountAmount });
+      } catch (error) {
+        res
+          .status(500)
+          .json({ error: "Coupon validation failed", details: error.message });
+      }
+    });
+
     // Get All Coupons
     app.get("/coupons", async (req, res) => {
       try {
