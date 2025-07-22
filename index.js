@@ -403,6 +403,27 @@ async function run() {
       }
     });
 
+    // Update coupons by ID
+    app.patch("/coupons/:id", async (req, res) => {
+      const couponId = req.params.id;
+      const updateData = req.body;
+
+      try {
+        const result = await couponsCollection.updateOne(
+          { _id: new ObjectId(couponId) },
+          { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ error: "Coupon not found" });
+        }
+
+        res.status(200).json({ message: "Coupon updated", result });
+      } catch (error) {
+        res.status(500).json({ error: "Failed to update coupon" });
+      }
+    });
+
     // Health check
     app.get("/", (req, res) => {
       res.send("Elite Arena SCMS Backend Running");
