@@ -209,6 +209,50 @@ async function run() {
       }
     });
 
+    // Update court by ID
+    app.patch("/courts/:id", async (req, res) => {
+      const courtId = req.params.id;
+      const updateData = req.body;
+
+      try {
+        const result = await courtsCollection.updateOne(
+          { _id: new ObjectId(courtId) },
+          { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ error: "Court not found" });
+        }
+
+        res.status(200).json({ message: "Court updated successfully", result });
+      } catch (error) {
+        res
+          .status(500)
+          .json({ error: "Failed to update court", details: error.message });
+      }
+    });
+
+    // Delete court by ID
+    app.delete("/courts/:id", async (req, res) => {
+      const courtId = req.params.id;
+
+      try {
+        const result = await courtsCollection.deleteOne({
+          _id: new ObjectId(courtId),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ error: "Court not found" });
+        }
+
+        res.status(200).json({ message: "Court deleted successfully" });
+      } catch (error) {
+        res
+          .status(500)
+          .json({ error: "Failed to delete court", details: error.message });
+      }
+    });
+
     // Create booking
     app.post("/bookings", async (req, res) => {
       try {
