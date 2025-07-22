@@ -30,17 +30,6 @@ async function run() {
     const courtsCollection = db.collection("courts");
     const bookingsCollection = db.collection("bookings");
 
-    // Create user
-    app.post("/users", async (req, res) => {
-      try {
-        const user = req.body;
-        const result = await usersCollection.insertOne(user);
-        res.status(201).json(result);
-      } catch {
-        res.status(500).json({ error: "Failed to create user" });
-      }
-    });
-
     // Create court
     app.post("/courts", async (req, res) => {
       try {
@@ -54,11 +43,20 @@ async function run() {
       }
     });
 
+    // Get all courts
+    app.get("/courts", async (req, res) => {
+      try {
+        const courts = await courtsCollection.find().toArray();
+        res.status(200).json(courts);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to fetch courts" });
+      }
+    });
+
     // Create booking
     app.post("/bookings", async (req, res) => {
       try {
         const booking = req.body;
-
         booking.status = "pending"; // enforce status
         booking.createdAt = new Date();
 
@@ -81,7 +79,7 @@ async function run() {
       }
     });
 
-    // Get all pending bookings (admin ManageBookings)
+    // Get all pending bookings (admin)
     app.get("/bookings/pending", async (req, res) => {
       try {
         const pendingBookings = await bookingsCollection
@@ -108,17 +106,7 @@ async function run() {
       }
     });
 
-    // Get all courts
-    app.get("/courts", async (req, res) => {
-      try {
-        const courts = await courtsCollection.find().toArray();
-        res.status(200).json(courts);
-      } catch (error) {
-        res.status(500).json({ error: "Failed to fetch courts" });
-      }
-    });
-
-    // Update booking status (Accept)
+    // Update booking status and promote user to member if approved
     app.patch("/bookings/:id", async (req, res) => {
       const bookingId = req.params.id;
       const { status } = req.body;
@@ -128,24 +116,42 @@ async function run() {
       }
 
       try {
-        const result = await bookingsCollection.updateOne(
-          { _id: new ObjectId(bookingId) },
-          { $set: { status: status } }
-        );
+        // Find the booking first
+        const booking = await bookingsCollection.findOne({
+          _id: new ObjectId(bookingId),
+        });
 
-        if (result.matchedCount === 0) {
+        if (!booking) {
           return res.status(404).json({ error: "Booking not found" });
         }
 
-        res
-          .status(200)
-          .json({ message: `Booking status updated to ${status}` });
+        // Update booking status
+        const bookingUpdateResult = await bookingsCollection.updateOne(
+          { _id: new ObjectId(bookingId) },
+          { $set: { status } }
+        );
+
+        // If approved, promote user to member role
+        if (status === "approved") {
+          await usersCollection.updateOne(
+            { uid: booking.userId }, // user identifier in bookings
+            { $set: { role: "member" } }
+          );
+        }
+
+        res.status(200).json({
+          message: `Booking ${status} and user promoted if applicable`,
+          bookingUpdateResult,
+        });
       } catch (error) {
-        res.status(500).json({ error: "Failed to update booking status" });
+        res.status(500).json({
+          error: "Failed to update booking status",
+          details: error.message,
+        });
       }
     });
 
-    // Delete booking (Reject)
+    // Delete booking (reject)
     app.delete("/bookings/:id", async (req, res) => {
       const bookingId = req.params.id;
 
