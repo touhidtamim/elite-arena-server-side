@@ -190,7 +190,6 @@ async function run() {
       }
     });
 
-    // Update booking status and promote user to member if approved
     app.patch("/bookings/:id", async (req, res) => {
       const bookingId = req.params.id;
       const { status } = req.body;
@@ -200,7 +199,7 @@ async function run() {
       }
 
       try {
-        // Find the booking first
+        // Find the booking by ID
         const booking = await bookingsCollection.findOne({
           _id: new ObjectId(bookingId),
         });
@@ -215,12 +214,18 @@ async function run() {
           { $set: { status } }
         );
 
-        // If approved, promote user to member role
         if (status === "approved") {
-          await usersCollection.updateOne(
-            { uid: booking.userId }, // user identifier in bookings
-            { $set: { role: "member" } }
-          );
+          // Try finding user by email instead of uid
+          const user = await usersCollection.findOne({
+            email: booking.userEmail,
+          });
+
+          if (user && user.role === "user") {
+            await usersCollection.updateOne(
+              { email: booking.userEmail },
+              { $set: { role: "member" } }
+            );
+          }
         }
 
         res.status(200).json({
