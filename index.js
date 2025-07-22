@@ -454,6 +454,65 @@ async function run() {
       }
     });
 
+    // Create payment record and update booking status to confirmed
+    app.post("/payments", async (req, res) => {
+      const {
+        bookingId,
+        email,
+        courtId,
+        slots,
+        price,
+        date,
+        couponCode,
+        discountApplied,
+      } = req.body;
+
+      if (!bookingId || !email || !courtId || !slots || !price || !date) {
+        return res
+          .status(400)
+          .json({ error: "Missing required payment fields" });
+      }
+
+      try {
+        // Insert payment record
+        const paymentData = {
+          bookingId,
+          email,
+          courtId,
+          slots,
+          price,
+          date,
+          couponCode: couponCode || null,
+          discountApplied: discountApplied || 0,
+          paidAt: new Date(),
+        };
+
+        const paymentResult = await client
+          .db("eliteArena")
+          .collection("payments")
+          .insertOne(paymentData);
+
+        // Update booking status to confirmed
+        const updateResult = await client
+          .db("eliteArena")
+          .collection("bookings")
+          .updateOne(
+            { _id: new ObjectId(bookingId) },
+            { $set: { status: "confirmed" } }
+          );
+
+        res.status(201).json({
+          message: "Payment successful, booking confirmed",
+          paymentId: paymentResult.insertedId,
+          updateResult,
+        });
+      } catch (error) {
+        res
+          .status(500)
+          .json({ error: "Payment processing failed", details: error.message });
+      }
+    });
+
     // Get All Coupons
     app.get("/coupons", async (req, res) => {
       try {
