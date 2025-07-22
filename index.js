@@ -29,6 +29,7 @@ async function run() {
     const usersCollection = db.collection("userscollection");
     const courtsCollection = db.collection("courts");
     const bookingsCollection = db.collection("bookings");
+    const couponsCollection = db.collection("coupons");
 
     //  Save or update user (Register or Google Login)
     app.put("/users", async (req, res) => {
@@ -372,6 +373,23 @@ async function run() {
         res.status(200).json({ message: "Booking cancelled successfully" });
       } catch (error) {
         res.status(500).json({ error: "Failed to cancel booking" });
+      }
+    });
+
+    // Create New Coupons
+    app.post("/coupons", async (req, res) => {
+      try {
+        const coupon = req.body;
+
+        const existing = await couponsCollection.findOne({ code: coupon.code });
+        if (existing) {
+          return res.status(409).json({ error: "Coupon already exists" });
+        }
+
+        const result = await couponsCollection.insertOne(coupon);
+        res.status(201).json({ message: "Coupon added", result });
+      } catch (error) {
+        res.status(500).json({ error: "Failed to add coupon" });
       }
     });
 
