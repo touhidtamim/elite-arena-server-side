@@ -86,6 +86,34 @@ async function run() {
       }
     });
 
+    // get users by email for profile
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+      res.send(user);
+    });
+
+    // update profile data
+    app.patch("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const { name, image } = req.body;
+
+      const updateDoc = {
+        $set: {},
+      };
+
+      if (name) updateDoc.$set.name = name;
+      if (image) updateDoc.$set.image = image;
+
+      const result = await usersCollection.updateOne({ email }, updateDoc);
+
+      res.send(result);
+    });
+
     // Create court
     app.post("/courts", async (req, res) => {
       try {
