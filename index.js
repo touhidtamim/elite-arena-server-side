@@ -424,6 +424,25 @@ async function run() {
       }
     });
 
+    // Delete Coupons by ID
+    app.delete("/coupons/:id", async (req, res) => {
+      const couponId = req.params.id;
+
+      try {
+        const result = await couponsCollection.deleteOne({
+          _id: new ObjectId(couponId),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ error: "Coupon not found" });
+        }
+
+        res.status(200).json({ message: "Coupon deleted" });
+      } catch (error) {
+        res.status(500).json({ error: "Failed to delete coupon" });
+      }
+    });
+
     // Health check
     app.get("/", (req, res) => {
       res.send("Elite Arena SCMS Backend Running");
