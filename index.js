@@ -86,6 +86,39 @@ async function run() {
       }
     });
 
+    // Get all users with optional search & role filter
+    app.get("/users", async (req, res) => {
+      try {
+        const { search, role } = req.query;
+
+        // Build query object dynamically
+        const query = {};
+
+        if (role && ["user", "member", "admin"].includes(role)) {
+          query.role = role;
+        }
+
+        if (search) {
+          // Case-insensitive partial match on name or email
+          query.$or = [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ];
+        }
+
+        const users = await usersCollection
+          .find(query)
+          .project({ name: 1, email: 1, role: 1, image: 1, createdAt: 1 })
+          .toArray();
+
+        res.status(200).json(users);
+      } catch (error) {
+        res
+          .status(500)
+          .json({ error: "Failed to fetch users", details: error.message });
+      }
+    });
+
     // Get all members (role === "member")
     app.get("/members", async (req, res) => {
       try {
@@ -118,12 +151,10 @@ async function run() {
 
         res.status(200).json({ message: "Member downgraded to user" });
       } catch (error) {
-        res
-          .status(500)
-          .json({
-            error: "Failed to downgrade member",
-            details: error.message,
-          });
+        res.status(500).json({
+          error: "Failed to downgrade member",
+          details: error.message,
+        });
       }
     });
 
