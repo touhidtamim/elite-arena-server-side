@@ -137,6 +137,24 @@ async function run() {
       }
     });
 
+    // get user role by email
+    app.get("/users/role/:email", async (req, res) => {
+      const email = req.params.email;
+
+      try {
+        const user = await usersCollection.findOne({ email });
+
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        return res.status(200).json({ role: user.role });
+      } catch (error) {
+        console.error("Error fetching role:", error);
+        return res.status(500).json({ message: "Server error" });
+      }
+    });
+
     // Downgrade a member to user (not delete, just change role)
     app.patch("/members/downgrade/:id", async (req, res) => {
       const userId = req.params.id;
@@ -563,7 +581,7 @@ async function run() {
       }
     });
 
-    // GET /payments - get payment history by email
+    // GET - get payment history by email
     app.get("/payments", async (req, res) => {
       try {
         const email = req.query.email;
