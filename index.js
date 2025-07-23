@@ -1,6 +1,6 @@
+const dotenv = require("dotenv");
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 dotenv.config();
@@ -23,7 +23,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("eliteArena");
 
@@ -135,6 +135,17 @@ async function run() {
       } catch (error) {
         res.status(500).json({ error: "Failed to fetch members" });
       }
+    });
+
+    // Get admin role for profile
+    app.get("/admin/overview", async (req, res) => {
+      const totalUsers = await usersCollection.countDocuments();
+      const totalBookings = await bookingsCollection.countDocuments();
+      const totalMembers = await usersCollection.countDocuments({
+        role: "member",
+      });
+
+      res.send({ totalUsers, totalBookings, totalMembers });
     });
 
     // get user role by email
