@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
@@ -309,17 +309,19 @@ async function run() {
       }
     });
 
-    // update bookings
+    // update bookings with stricter validation and "paid" support
     app.patch("/bookings/:id", async (req, res) => {
       const bookingId = req.params.id;
       const { status } = req.body;
 
-      if (!status || !["approved", "pending", "rejected"].includes(status)) {
+      // Allow "paid" status now
+      const validStatuses = ["approved", "pending", "rejected", "paid"];
+
+      if (!status || !validStatuses.includes(status)) {
         return res.status(400).json({ error: "Invalid status value" });
       }
 
       try {
-        // Find the booking by ID
         const booking = await bookingsCollection.findOne({
           _id: new ObjectId(bookingId),
         });
@@ -328,14 +330,25 @@ async function run() {
           return res.status(404).json({ error: "Booking not found" });
         }
 
+        // Restrict allowed transitions:
+        // - From any to pending/rejected is allowed
+        // - From any to approved allowed
+        // - From approved to paid allowed ONLY
+        // - From other states to paid NOT allowed
+        if (status === "paid" && booking.status !== "approved") {
+          return res.status(400).json({
+            error: "Booking must be approved before marking as paid",
+          });
+        }
+
         // Update booking status
         const bookingUpdateResult = await bookingsCollection.updateOne(
           { _id: new ObjectId(bookingId) },
           { $set: { status } }
         );
 
+        // If booking is approved, promote user role if applicable
         if (status === "approved") {
-          // Try finding user by email instead of uid
           const user = await usersCollection.findOne({
             email: booking.userEmail,
           });
@@ -349,7 +362,7 @@ async function run() {
         }
 
         res.status(200).json({
-          message: `Booking ${status} and user promoted if applicable`,
+          message: `Booking status updated to ${status}`,
           bookingUpdateResult,
         });
       } catch (error) {
@@ -376,6 +389,27 @@ async function run() {
           error: "Failed to fetch approved bookings",
           details: error.message,
         });
+      }
+    });
+
+    // Get booking by ID
+    app.get("/bookings/:id", async (req, res) => {
+      const bookingId = req.params.id;
+
+      try {
+        const booking = await bookingsCollection.findOne({
+          _id: new ObjectId(bookingId),
+        });
+
+        if (!booking) {
+          return res.status(404).json({ error: "Booking not found" });
+        }
+
+        res.status(200).json(booking);
+      } catch (error) {
+        res
+          .status(500)
+          .json({ error: "Failed to fetch booking", details: error.message });
       }
     });
 
@@ -454,6 +488,26 @@ async function run() {
       }
     });
 
+    // Create STRIPE payment intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100); // Convert to cents
+
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      } catch (err) {
+        res.status(500).send({ error: err.message });
+      }
+    });
+
     // Create payment record and update booking status to confirmed
     app.post("/payments", async (req, res) => {
       const {
@@ -465,6 +519,9 @@ async function run() {
         date,
         couponCode,
         discountApplied,
+        transactionId,
+        courtName,
+        name,
       } = req.body;
 
       if (!bookingId || !email || !courtId || !slots || !price || !date) {
@@ -476,14 +533,18 @@ async function run() {
       try {
         // Insert payment record
         const paymentData = {
+          transactionId,
           bookingId,
           email,
+          name,
           courtId,
+          courtName,
           slots,
           price,
           date,
           couponCode: couponCode || null,
           discountApplied: discountApplied || 0,
+          status: "paid",
           paidAt: new Date(),
         };
 
@@ -498,7 +559,7 @@ async function run() {
           .collection("bookings")
           .updateOne(
             { _id: new ObjectId(bookingId) },
-            { $set: { status: "confirmed" } }
+            { $set: { status: "paid" } }
           );
 
         res.status(201).json({
@@ -574,8 +635,6 @@ async function run() {
         res.status(500).json({ error: "Failed to delete coupon" });
       }
     });
-
-    const { ObjectId } = require("mongodb");
 
     // GET all announcements
     app.get("/announcements", async (req, res) => {
