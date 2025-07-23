@@ -32,6 +32,7 @@ async function run() {
     const bookingsCollection = db.collection("bookings");
     const couponsCollection = db.collection("coupons");
     const announcementsCollection = db.collection("announcements");
+    const paymentsCollection = client.db("eliteArena").collection("payments");
 
     //  Save or update user (Register or Google Login)
     app.put("/users", async (req, res) => {
@@ -330,11 +331,6 @@ async function run() {
           return res.status(404).json({ error: "Booking not found" });
         }
 
-        // Restrict allowed transitions:
-        // - From any to pending/rejected is allowed
-        // - From any to approved allowed
-        // - From approved to paid allowed ONLY
-        // - From other states to paid NOT allowed
         if (status === "paid" && booking.status !== "approved") {
           return res.status(400).json({
             error: "Booking must be approved before marking as paid",
@@ -508,7 +504,7 @@ async function run() {
       }
     });
 
-    // Create payment record and update booking status to confirmed
+    // POST /payments - create payment and update booking status
     app.post("/payments", async (req, res) => {
       const {
         bookingId,
@@ -531,7 +527,6 @@ async function run() {
       }
 
       try {
-        // Insert payment record
         const paymentData = {
           transactionId,
           bookingId,
@@ -548,19 +543,12 @@ async function run() {
           paidAt: new Date(),
         };
 
-        const paymentResult = await client
-          .db("eliteArena")
-          .collection("payments")
-          .insertOne(paymentData);
+        const paymentResult = await paymentsCollection.insertOne(paymentData);
 
-        // Update booking status to confirmed
-        const updateResult = await client
-          .db("eliteArena")
-          .collection("bookings")
-          .updateOne(
-            { _id: new ObjectId(bookingId) },
-            { $set: { status: "paid" } }
-          );
+        const updateResult = await bookingsCollection.updateOne(
+          { _id: new ObjectId(bookingId) },
+          { $set: { status: "paid" } }
+        );
 
         res.status(201).json({
           message: "Payment successful, booking confirmed",
@@ -568,9 +556,32 @@ async function run() {
           updateResult,
         });
       } catch (error) {
+        console.error("Payment processing error:", error);
         res
           .status(500)
           .json({ error: "Payment processing failed", details: error.message });
+      }
+    });
+
+    // GET /payments - get payment history by email
+    app.get("/payments", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res
+            .status(400)
+            .json({ error: "Email query parameter is required" });
+        }
+
+        const payments = await paymentsCollection
+          .find({ email: email })
+          .sort({ paidAt: -1 }) // newest first
+          .toArray();
+
+        res.status(200).json(payments);
+      } catch (error) {
+        console.error("Error fetching payments:", error);
+        res.status(500).json({ error: "Internal Server Error" });
       }
     });
 
