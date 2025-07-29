@@ -13,8 +13,8 @@ While the server focuses on secure data and API handling, all user interactions 
 ---
 
 👉 To explore the full system with UI, visit the client:  
-🔗 **Client Repository:** [elite-arena-client-side](https://github.com/touhidtamim/elite-arena-client-side)  
-🌐 **Live View:** [https://test-elite-arena.netlify.app](https://test-elite-arena.netlify.app)
+🔗 **Client Repository:** [Elite-Arena-client-side](https://github.com/touhidtamim/elite-arena-client-side)  
+🌐 **Live View:** [Elite-Arena Live View](https://test-elite-arena.netlify.app)
 
 ---
 
