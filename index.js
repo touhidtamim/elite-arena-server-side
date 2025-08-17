@@ -75,7 +75,6 @@ async function run() {
           createdAt: now,
           lastLoggedIn: now,
         };
-
         const result = await usersCollection.insertOne(newUser);
         res.status(201).json({
           message: "User created successfully.",
@@ -456,6 +455,40 @@ async function run() {
         res.status(500).json({ error: "Failed to cancel booking" });
       }
     });
+
+    // Fetch all bookings
+    const bookingsRes = await api.get("/bookings");
+    const userBookings = bookingsRes.data.filter(
+      (b) => b.email === user.email // match your backend field, here likely `email` not `userEmail`
+    );
+
+    // Approved and pending counts for overview page
+    const approved = userBookings.filter(
+      (b) => b.status === "paid" || b.status === "approved"
+    );
+    const pending = userBookings.filter((b) => b.status === "pending");
+
+    setApprovedBookingsCount(approved.length);
+    setPendingBookingsCount(pending.length);
+
+    // Week chart (only approved bookings)
+    const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const dayCountMap = {};
+    weekDays.forEach((day) => (dayCountMap[day] = 0));
+
+    approved.forEach((b) => {
+      const bookingDate = new Date(b.date);
+      const dayName =
+        weekDays[bookingDate.getDay() === 0 ? 6 : bookingDate.getDay() - 1];
+      dayCountMap[dayName] += 1;
+    });
+
+    const chartData = weekDays.map((day) => ({
+      day,
+      bookings: dayCountMap[day],
+    }));
+
+    setBookingsData(chartData);
 
     //  Create Coupons
     app.post("/coupons", async (req, res) => {
